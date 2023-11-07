@@ -88,6 +88,8 @@ static int led_peripheral_listener_cb(const zmk_event_t *eh) {
 // run led_peripheral_listener_cb on peripheral status change event
 ZMK_LISTENER(led_peripheral_listener, led_peripheral_listener_cb);
 ZMK_SUBSCRIPTION(led_peripheral_listener, zmk_split_peripheral_status_changed);
+#endif
+#endif // IS_ENABLED(CONFIG_ZMK_BLE)
 
 static int led_layer_listener_cb(const zmk_event_t *eh) {
     uint8_t layer = ((struct zmk_layer_state_changed *)eh)->layer;
@@ -104,8 +106,6 @@ static int led_layer_listener_cb(const zmk_event_t *eh) {
 // run led_layer_listener_cb on layer change (on central)
 ZMK_LISTENER(led_layer_listener, led_layer_listener_cb);
 ZMK_SUBSCRIPTION(led_layer_listener, zmk_layer_state_changed);
-#endif
-#endif // IS_ENABLED(CONFIG_ZMK_BLE)
 
 #if IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING)
 static int led_battery_listener_cb(const zmk_event_t *eh) {
