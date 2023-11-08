@@ -82,7 +82,7 @@ static int led_layer_listener_cb(const zmk_event_t *eh) {
         LOG_INF("Default layer not selected, blinking magenta");
         blink.duration_ms = CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS;
         k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
-    } elif (layer == _zmk_keymap_layer_default && state) {
+    } else if (layer == _zmk_keymap_layer_default && state) {
         LOG_INF("Default layer selected, turning off magenta");
         blink.duration_ms = 1;
         k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
