@@ -3,6 +3,13 @@ if SHIELD_RGBLED_WIDGET
 config LED
     default y
 
+config ZMK_LAYER_LED
+    default y
+
+config RGBLED_WIDGET_LAYER_BLINK_MS
+    int "Duration of Non Default layer blink in ms"
+    default 20000
+
 config RGBLED_WIDGET_BATTERY_BLINK_MS
     int "Duration of battery level blink in ms"
     default 2000

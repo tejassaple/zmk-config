@@ -72,14 +72,19 @@ static int led_profile_listener_cb(const zmk_event_t *eh) {
 ZMK_LISTENER(led_profile_listener, led_profile_listener_cb);
 ZMK_SUBSCRIPTION(led_profile_listener, zmk_ble_active_profile_changed);
 
+#if IS_ENABLED(CONFIG_ZMK_LAYER_LED)
 static int led_layer_listener_cb(const zmk_event_t *eh) {
     uint8_t layer = ((struct zmk_layer_state_changed *)eh)->layer;
     bool state = ((struct zmk_layer_state_changed *)eh)->state;
+
+    struct blink_item blink = {.color = LED_MAGENTA};
     if (layer != _zmk_keymap_layer_default && state) {
         LOG_INF("Default layer not selected, blinking magenta");
-
-        struct blink_item blink = {.duration_ms = CONFIG_RGBLED_WIDGET_BATTERY_BLINK_MS,
-                                   .color = LED_MAGENTA};
+        blink.duration_ms = CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS;
+        k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
+    } elif (layer == _zmk_keymap_layer_default && state) {
+        LOG_INF("Default layer selected, turning off magenta");
+        blink.duration_ms = 1;
         k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
     }
 }
@@ -87,6 +92,7 @@ static int led_layer_listener_cb(const zmk_event_t *eh) {
 // run led_layer_listener_cb on layer change (on central)
 ZMK_LISTENER(led_layer_listener, led_layer_listener_cb);
 ZMK_SUBSCRIPTION(led_layer_listener, zmk_layer_state_changed);
+#endif // IS_ENABLED(CONFIG_ZMK_LAYER_LED)
 
 #else
 static int led_peripheral_listener_cb(const zmk_event_t *eh) {
