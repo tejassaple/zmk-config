@@ -66,8 +66,8 @@ static void turn_off_led() {
     }
 }
 
-static void check_layer_set_led(uint8_t layer) {
-    if (layer == zmk_keymap_layer_default()) {
+static void check_layer_set_led(uint8_t layer, uint8_t layer_default) {
+    if (layer == layer_default) {
         turn_off_led();
     } else {
         struct blink_item blink;
@@ -108,7 +108,7 @@ static int led_layer_listener_cb(const zmk_event_t *eh) {
     uint8_t layer = ((struct zmk_layer_state_changed *)eh)->layer;
     bool state = ((struct zmk_layer_state_changed *)eh)->state;
     if (state) {
-        check_layer_set_led(layer);
+        check_layer_set_led(layer, zmk_keymap_layer_default());
     }
     return 0;
 }
@@ -209,7 +209,7 @@ extern void led_thread(void *d0, void *d1, void *d2) {
         // wait for blink duration
         k_sleep(K_MSEC(blink.duration_ms));
 
-        check_layer_set_led(zmk_keymap_highest_layer_active());
+        check_layer_set_led(zmk_keymap_highest_layer_active(), zmk_keymap_layer_default());
 
         // wait interval before processing another blink
         k_sleep(K_MSEC(CONFIG_RGBLED_WIDGET_INTERVAL_MS));
