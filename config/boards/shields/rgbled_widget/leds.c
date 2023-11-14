@@ -8,6 +8,7 @@
 #include <zmk/ble.h>
 #include <zmk/endpoints.h>
 #include <zmk/events/ble_active_profile_changed.h>
+#include <zmk/keymap.h>
 #include <zmk/split/bluetooth/peripheral.h>
 #include <zmk/events/split_peripheral_status_changed.h>
 #include <zmk/events/battery_state_changed.h>
@@ -24,8 +25,6 @@ static const struct device *led_dev = DEVICE_DT_GET(LED_GPIO_NODE_ID);
 static const uint8_t rgb_idx[] = {DT_NODE_CHILD_IDX(DT_ALIAS(led_red)),
                                   DT_NODE_CHILD_IDX(DT_ALIAS(led_green)),
                                   DT_NODE_CHILD_IDX(DT_ALIAS(led_blue))};
-
-static uint8_t _zmk_keymap_layer_default = 0;
 
 // color values as specified by an RGB bitfield
 enum color_t {
@@ -48,6 +47,38 @@ struct blink_item {
 
 // define message queue of blink work items, that will be processed by a separate thread
 K_MSGQ_DEFINE(led_msgq, sizeof(struct blink_item), 16, 4);
+
+static void turn_on_led(struct blink_item *blink) {
+    // turn appropriate LEDs on
+    for (uint8_t pos = 0; pos < 3; pos++) {
+        if (BIT(pos) & (*blink).color) {
+            led_on(led_dev, rgb_idx[pos]);
+        } else {
+            led_off(led_dev, rgb_idx[pos]);
+        }
+    }
+}
+
+static void turn_off_led() {
+    // turn appropriate LEDs off
+    for (uint8_t pos = 0; pos < 3; pos++) {
+        led_off(led_dev, rgb_idx[pos]);
+    }
+}
+
+static void check_layer_set_led(uint8_t layer) {
+    if (layer == zmk_keymap_layer_default()) {
+        turn_off_led();
+    } else {
+        struct blink_item blink;
+        if (layer == 1) {
+            blink.color = LED_MAGENTA;
+        } else {
+            blink.color = LED_CYAN;
+        }
+        turn_on_led(&blink);
+    }
+}
 
 #if IS_ENABLED(CONFIG_ZMK_BLE)
 #if !IS_ENABLED(CONFIG_ZMK_SPLIT) || IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
@@ -76,17 +107,10 @@ ZMK_SUBSCRIPTION(led_profile_listener, zmk_ble_active_profile_changed);
 static int led_layer_listener_cb(const zmk_event_t *eh) {
     uint8_t layer = ((struct zmk_layer_state_changed *)eh)->layer;
     bool state = ((struct zmk_layer_state_changed *)eh)->state;
-
-    struct blink_item blink = {.color = LED_MAGENTA};
-    if (layer != _zmk_keymap_layer_default && state) {
-        LOG_INF("Default layer not selected, blinking magenta");
-        blink.duration_ms = CONFIG_RGBLED_WIDGET_LAYER_BLINK_MS;
-        k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
-    } else if (layer == _zmk_keymap_layer_default && state) {
-        LOG_INF("Default layer selected, turning off magenta");
-        blink.duration_ms = 1;
-        k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
+    if (state) {
+        check_layer_set_led(layer);
     }
+    return 0;
 }
 
 // run led_layer_listener_cb on layer change (on central)
@@ -180,22 +204,12 @@ extern void led_thread(void *d0, void *d1, void *d2) {
         LOG_DBG("Got a blink item from msgq, color %d, duration %d", blink.color,
                 blink.duration_ms);
 
-        // turn appropriate LEDs on
-        for (uint8_t pos = 0; pos < 3; pos++) {
-            if (BIT(pos) & blink.color) {
-                led_on(led_dev, rgb_idx[pos]);
-            }
-        }
+        turn_on_led(&blink);
 
         // wait for blink duration
         k_sleep(K_MSEC(blink.duration_ms));
 
-        // turn appropriate LEDs off
-        for (uint8_t pos = 0; pos < 3; pos++) {
-            if (BIT(pos) & blink.color) {
-                led_off(led_dev, rgb_idx[pos]);
-            }
-        }
+        check_layer_set_led(zmk_keymap_highest_layer_active());
 
         // wait interval before processing another blink
         k_sleep(K_MSEC(CONFIG_RGBLED_WIDGET_INTERVAL_MS));
